@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -8,11 +11,25 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { history as historyData } from '@/lib/data';
+import { getAllHistory } from '@/lib/vehicles';
 import { cn } from '@/lib/utils';
+import type { History } from '@/lib/definitions';
+import { Loader2 } from 'lucide-react';
 
 export default function HistoryPage() {
-  const sortedHistory = [...historyData].sort((a, b) => b.verified_at.getTime() - a.verified_at.getTime());
+  const [history, setHistory] = useState<History[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadHistory() {
+      setIsLoading(true);
+      const historyData = await getAllHistory();
+      const sortedHistory = [...historyData].sort((a, b) => b.verified_at.getTime() - a.verified_at.getTime());
+      setHistory(sortedHistory);
+      setIsLoading(false);
+    }
+    loadHistory();
+  }, []);
 
   return (
     <div className="container mx-auto">
@@ -29,33 +46,39 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent>
           <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Plate Number</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Timestamp</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedHistory.map((item) => (
-                  <TableRow key={item.history_id}>
-                    <TableCell className="font-mono font-semibold">{item.plate_text}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={item.status === 'Registered' ? 'default' : 'destructive'}
-                        className={cn(item.status === 'Registered' && 'bg-green-600')}
-                      >
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {item.verified_at.toLocaleString()}
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex justify-center items-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Plate Number</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Timestamp</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {history.map((item) => (
+                    <TableRow key={item.history_id}>
+                      <TableCell className="font-mono font-semibold">{item.plate_text}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={item.status === 'Registered' ? 'default' : 'destructive'}
+                          className={cn(item.status === 'Registered' && 'bg-green-600')}
+                        >
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {new Date(item.verified_at).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,10 +37,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { vehicles as initialVehicles } from '@/lib/data';
 import type { Vehicle } from '@/lib/definitions';
 import { useToast } from '@/hooks/use-toast';
-import { sleep } from '@/lib/utils';
+import { addVehicle, getAllVehicles } from '@/lib/vehicles';
 
 
 const vehicleSchema = z.object({
@@ -66,19 +65,28 @@ function RegisterVehicleForm({ onVehicleAdd }: { onVehicleAdd: (vehicle: Vehicle
 
   async function onSubmit(values: z.infer<typeof vehicleSchema>) {
     setIsLoading(true);
-    await sleep(1000);
-
-    const newVehicle: Vehicle = {
-      ...values,
-      institute_id: 'INST-001',
-    };
-    onVehicleAdd(newVehicle);
-    toast({
-      title: 'Vehicle Registered',
-      description: `Vehicle with plate ${values.plate_text} has been successfully registered.`,
-    });
-    form.reset();
-    setIsLoading(false);
+    try {
+      await addVehicle(values);
+      const newVehicle: Vehicle = {
+        ...values,
+        institute_id: 'INST-001',
+      };
+      onVehicleAdd(newVehicle);
+      toast({
+        title: 'Vehicle Registered',
+        description: `Vehicle with plate ${values.plate_text} has been successfully registered.`,
+      });
+      form.reset();
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to register vehicle.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -173,8 +181,21 @@ function VehicleList({ vehicles }: { vehicles: Vehicle[] }) {
 
 
 export default function VehiclesPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTab, setActiveTab] = useState('list');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadVehicles() {
+      setIsLoading(true);
+      const fetchedVehicles = await getAllVehicles();
+      setVehicles(fetchedVehicles);
+      setIsLoading(false);
+    }
+    if(activeTab === 'list'){
+      loadVehicles();
+    }
+  }, [activeTab]);
 
   const addVehicle = (vehicle: Vehicle) => {
     setVehicles([vehicle, ...vehicles]);
@@ -210,7 +231,13 @@ export default function VehiclesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <VehicleList vehicles={vehicles} />
+              {isLoading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <VehicleList vehicles={vehicles} />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

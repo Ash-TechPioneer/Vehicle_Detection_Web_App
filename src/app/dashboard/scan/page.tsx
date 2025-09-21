@@ -6,9 +6,8 @@ import { Camera, CameraOff, Loader2, ScanLine } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { vehicles } from '@/lib/data';
-import { sleep } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { extractPlateNumber } from '@/ai/flows/extract-plate-number';
 
 export default function ScanPage() {
   const router = useRouter();
@@ -58,7 +57,7 @@ export default function ScanPage() {
   }, []);
 
   const handleScan = async () => {
-    if (!isCameraOn) {
+    if (!isCameraOn || !videoRef.current) {
         toast({
           variant: 'destructive',
           title: 'Camera is off',
@@ -68,26 +67,40 @@ export default function ScanPage() {
     }
     setIsScanning(true);
 
-    // Simulate OCR processing time
-    await sleep(2000);
-
-    // Simulate OCR result: 70% chance of a known vehicle, 30% of an unknown one
-    const isKnown = Math.random() < 0.7;
-    let plate = '';
-    if (isKnown) {
-      plate = vehicles[Math.floor(Math.random() * vehicles.length)].plate_text;
-    } else {
-      plate = `NEW-${Math.floor(Math.random() * 900) + 100}`;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not process video frame.' });
+        setIsScanning(false);
+        return;
     }
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const photoDataUri = canvas.toDataURL('image/jpeg');
 
-    toast({
-      title: 'Scan Complete',
-      description: `Detected plate: ${plate}`,
-    });
-
-    setIsScanning(false);
-    stopCamera();
-    router.push(`/dashboard/verify/${plate}`);
+    try {
+      const { plateNumber } = await extractPlateNumber({ photoDataUri });
+      if (plateNumber) {
+        toast({
+          title: 'Scan Complete',
+          description: `Detected plate: ${plateNumber}`,
+        });
+        stopCamera();
+        router.push(`/dashboard/verify/${plateNumber}`);
+      } else {
+        throw new Error('No plate number detected.');
+      }
+    } catch (e) {
+      console.error(e);
+      toast({
+        variant: 'destructive',
+        title: 'Scan Failed',
+        description: 'Could not detect a license plate. Please try again.',
+      });
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   return (

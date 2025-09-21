@@ -23,3 +23,13 @@ export type History = {
   verified_at: Date;
   status: 'Registered' | 'Unregistered';
 };
+
+export type NewHistory = Omit<History, 'history_id' | 'user_id' | 'verified_at'>;
+
+export type VehicleData = {
+  plate_text: string;
+  owner_name: string;
+  phone: string;
+  vehicle_model: string;
+  institute_id: string;
+};

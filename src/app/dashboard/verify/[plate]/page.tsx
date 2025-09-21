@@ -1,4 +1,4 @@
-import { vehicles, history } from '@/lib/data';
+import { getVehicleByPlate, addHistory } from '@/lib/vehicles';
 import type { Vehicle } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,18 +6,10 @@ import { CheckCircle, XCircle, User, Phone, Car, AlertTriangle } from 'lucide-re
 import Link from 'next/link';
 
 async function getVehicleDetails(plate: string): Promise<Vehicle | null> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const vehicle = await getVehicleByPlate(plate);
   
-  // In a real app, this would be a DB call.
-  const vehicle = vehicles.find(v => v.plate_text.toLowerCase() === plate.toLowerCase());
-  
-  // Add to history
-  history.push({
-    history_id: history.length + 1,
-    user_id: 2, // Mocked user ID
+  await addHistory({
     plate_text: plate.toUpperCase(),
-    verified_at: new Date(),
     status: vehicle ? 'Registered' : 'Unregistered',
   });
   
